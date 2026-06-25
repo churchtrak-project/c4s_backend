@@ -30,26 +30,30 @@ cp .env.example .env
 # Edit .env with your values (especially DATABASE_URL and KeshoPay keys)
 ```
 
-### 2. PostgreSQL (required)
-Create the database and role (example using psql or Docker):
+### 2. PostgreSQL (Docker Compose — recommended)
+From the `backend/` directory:
 
-**Docker (recommended for dev):**
 ```bash
-docker run --name cfs-postgres -e POSTGRES_PASSWORD=careforsheperds -e POSTGRES_USER=careforsheperds -e POSTGRES_DB=careforsheperds -p 5432:5432 -d postgres:16
+docker compose up -d
 ```
 
-Then in `.env`:
+Postgres listens on **host port 5435** (container 5432). Ensure `.env` has:
 ```
-DATABASE_URL=postgres://careforsheperds:careforsheperds@localhost:5432/careforsheperds
+DATABASE_URL=postgres://careforsheperds:careforsheperds@localhost:5435/careforsheperds
 ```
 
-### 3. Migrations & Superuser (CFS Super Admin)
+Stop/remove: `docker compose down` (add `-v` to wipe the data volume).
+
+### 3. Migrations & demo data
 ```bash
 python manage.py migrate
-python manage.py createsuperuser --phone 254700000000   # or whatever phone you want for the CFS superadmin
+python manage.py seed_demo
 ```
 
-The superuser will be created with role `cfs_superadmin` (global, no church).
+Demo logins are in `DEMO_CREDENTIALS.md`. Optional Django superuser:
+```bash
+python manage.py createsuperuser --phone 254700000000
+```
 
 ### 4. Run
 ```bash
