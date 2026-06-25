@@ -88,13 +88,7 @@ python manage.py runserver
 - `Donation` has nullable FK `pledge`.
 - Actual money still arrives as individual Donation records via M-Pesa.
 
-## Next (after Phase 1 is solid)
-- Real frontend (campaign pages, donor flow) — frontend now exists; backend extended to provide matching endpoints
-- Proper authentication (now has /api/auth/login/ returning token + role profile)
-- Disbursement payout calls to KeshoPay
-- Better pledge fulfillment reminders
-
-## Expanded API Surface (to power full frontend)
+## Expanded API Surface
 **Auth**
 - POST /api/auth/login/ — identifier (email/phone) + password → {token, user:{id,name,email,role,church,initials}}
 
@@ -121,5 +115,3 @@ All endpoints are tenant-aware and role-permissioned. Use Token auth header afte
 - All financial data is strictly per-Church (multi-tenant via FK + queryset filtering).
 - One primary Pastor per Church.
 - Purely guest donations (phone number only).
-
-Built following the CARE FOR SHEPHERDS SRS v2.0 — Phase 1 only.
