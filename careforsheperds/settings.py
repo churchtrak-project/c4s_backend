@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third-party
+    'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',  # for token-based login used by frontend roles
 
@@ -55,6 +56,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -148,3 +150,27 @@ KESHOPAY = {
     'BASE_URL': env('KESHOPAY_BASE_URL', default='https://api.keshopay.co.ke'),
     'WEBHOOK_SECRET': env('KESHOPAY_WEBHOOK_SECRET', default=''),
 }
+
+# =============================================================================
+# CORS — required for browser clients (Next.js dev server, hosted frontend)
+# =============================================================================
+CORS_ALLOWED_ORIGINS = env.list(
+    'CORS_ALLOWED_ORIGINS',
+    default=[
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+    ],
+)
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CORS_URLS_REGEX = r'^/api/.*$'

@@ -62,6 +62,51 @@ class Campaign(models.Model):
         pct = float((self.total_raised / self.goal_amount) * 100)
         return min(round(pct, 1), 100.0)
 
+    @property
+    def donor_count(self) -> int:
+        return (
+            self.donations.filter(status=Donation.STATUS_SUCCESS)
+            .values('donor_phone')
+            .distinct()
+            .count()
+        )
+
+    @property
+    def days_left(self) -> int:
+        from datetime import date
+        delta = (self.end_date - date.today()).days
+        return max(delta, 0)
+
+    @property
+    def status_label(self) -> str:
+        from datetime import date
+        if not self.is_active:
+            return 'Completed'
+        if self.end_date < date.today() or self.progress_percent >= 100:
+            return 'Completed'
+        return 'Active'
+
+
+class CampaignUpdate(models.Model):
+    """Public campaign progress posts shown on the share page."""
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='updates')
+    author_name = models.CharField(max_length=150)
+    author = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='campaign_updates',
+    )
+    text = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Update on {self.campaign.title} by {self.author_name}"
+
 
 class Pledge(models.Model):
     """
@@ -148,6 +193,8 @@ class Donation(models.Model):
     provider_transaction_id = models.CharField(max_length=100, blank=True, db_index=True, help_text="KeshoPay transactionId")
 
     received_at = models.DateTimeField(null=True, blank=True)
+    payment_method = models.CharField(max_length=30, default='M-Pesa')
+    receipt_sent = models.BooleanField(default=False)
     metadata = models.JSONField(default=dict, blank=True)
 
     created_at = models.DateTimeField(default=timezone.now)
@@ -188,10 +235,15 @@ class Disbursement(models.Model):
 
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     purpose = models.TextField(help_text="e.g. 'The Sabbath Week retreat for Pastor James at Lake Naivasha'")
+    category = models.CharField(max_length=80, blank=True, default='General')
+    reference = models.CharField(max_length=30, unique=True, blank=True)
+    intended_date = models.DateField(null=True, blank=True)
 
-    # Multi-level approval
+    # Multi-level approval (initiator + accountability officer)
     requested_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='requested_disbursements')
     approved_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_disbursements')
+    rejected_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='rejected_disbursements')
+    rejection_reason = models.TextField(blank=True)
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_REQUESTED, db_index=True)
 
@@ -217,3 +269,53 @@ class Disbursement(models.Model):
 
     def __str__(self):
         return f"Disburse {self.amount} for {self.campaign.title} ({self.get_status_display()})"
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            last = Disbursement.objects.order_by('-id').first()
+            next_num = (last.id + 1) if last else 1
+            self.reference = f'DSB-{next_num:03d}'
+        super().save(*args, **kwargs)
+
+    @property
+    def signature_count(self) -> int:
+        count = 1 if self.requested_by_id else 0
+        if self.approved_by_id and self.status in (self.STATUS_APPROVED, self.STATUS_PAID):
+            count += 1
+        return count
+
+    @property
+    def status_display_frontend(self) -> str:
+        if self.status in (self.STATUS_APPROVED, self.STATUS_PAID):
+            return 'Released'
+        if self.status == self.STATUS_REQUESTED:
+            return 'Pending'
+        if self.status == self.STATUS_REJECTED:
+            return 'Rejected'
+        return self.get_status_display()
+
+    def signatures_payload(self):
+        """Shape for the approvals UI."""
+        sigs = [
+            {
+                'name': self.requested_by.full_name or self.requested_by.email or self.requested_by.phone,
+                'role': 'Church Admin (Initiator)',
+                'signed': True,
+                'date': self.requested_at.strftime('%b %d, %Y') if self.requested_at else None,
+            }
+        ]
+        accountability = None
+        if self.church:
+            accountability = self.church.users.filter(
+                role='finance_officer', is_active=True
+            ).first()
+        officer_name = 'Accountability Officer'
+        if accountability:
+            officer_name = accountability.full_name or accountability.email or 'Accountability Officer'
+        sigs.append({
+            'name': officer_name,
+            'role': 'Accountability Officer',
+            'signed': bool(self.approved_by_id and self.status in (self.STATUS_APPROVED, self.STATUS_PAID)),
+            'date': self.approved_at.strftime('%b %d, %Y') if self.approved_at else None,
+        })
+        return sigs

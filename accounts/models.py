@@ -119,6 +119,11 @@ class User(AbstractUser):
         return self.role == self.ROLE_FINANCE_OFFICER
 
     @property
+    def is_accountability_officer(self):
+        """Alias used by the wellnessfund UI (Accountability Officer)."""
+        return self.is_finance_officer
+
+    @property
     def is_ministry_leader(self):
         return self.role == self.ROLE_MINISTRY_LEADER
 

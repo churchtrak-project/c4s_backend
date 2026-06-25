@@ -5,17 +5,19 @@ from . import views
 
 router = DefaultRouter()
 router.register(r'campaigns', views.CampaignViewSet, basename='campaign')
+router.register(r'campaign-updates', views.CampaignUpdateViewSet, basename='campaign-update')
+router.register(r'donations', views.DonationViewSet, basename='donation')
+router.register(r'disbursements', views.DisbursementViewSet, basename='disbursement')
 
 urlpatterns = [
-    # Public + authenticated campaign + donation endpoints (Phase 1)
     path('', include(router.urls)),
 
-    # Guest donation initiation (no auth required)
+    path('dashboard/', views.FundDashboardView.as_view(), name='fund-dashboard'),
     path('donate/', views.InitiateDonationView.as_view(), name='initiate-donation'),
+    path('donations/<int:pk>/resend-receipt/', views.ResendReceiptView.as_view(), name='resend-receipt'),
 
-    # Public campaign detail by uuid (for share links)
     path('public/campaigns/<uuid:public_uuid>/', views.PublicCampaignDetailView.as_view(), name='public-campaign'),
+    path('public/campaigns/<uuid:public_uuid>/ledger/', views.PublicCampaignLedgerView.as_view(), name='public-campaign-ledger'),
 
-    # Simple ledger summary (can be public per campaign or authenticated)
     path('campaigns/<int:pk>/ledger/', views.CampaignLedgerView.as_view(), name='campaign-ledger'),
 ]

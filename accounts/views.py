@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
+from rest_framework.permissions import IsAuthenticated
+
 from .serializers import ChurchSignupSerializer, LoginSerializer, UserProfileSerializer
 
 
@@ -57,3 +59,11 @@ class LoginView(APIView):
             'token': token.key,
             'user': profile,
         }, status=status.HTTP_200_OK)
+
+
+class MeView(APIView):
+    """Return the currently authenticated user's profile."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserProfileSerializer(request.user).data)

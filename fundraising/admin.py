@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Campaign, Pledge, Donation, Disbursement
+from .models import Campaign, CampaignUpdate, Pledge, Donation, Disbursement
 
 
 @admin.register(Campaign)
@@ -21,6 +21,13 @@ class CampaignAdmin(admin.ModelAdmin):
             obj.progress_percent, obj.goal_amount, obj.current_balance
         )
     progress_display.short_description = 'Progress & Balance'
+
+
+@admin.register(CampaignUpdate)
+class CampaignUpdateAdmin(admin.ModelAdmin):
+    list_display = ('campaign', 'author_name', 'created_at')
+    search_fields = ('text', 'author_name', 'campaign__title')
+    autocomplete_fields = ['campaign', 'author']
 
 
 @admin.register(Pledge)

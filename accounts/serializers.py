@@ -9,10 +9,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     church = serializers.SerializerMethodField()
     initials = serializers.SerializerMethodField()
+    role_label = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'church', 'initials']
+        fields = ['id', 'name', 'email', 'role', 'role_label', 'church', 'initials']
+
+    def get_role_label(self, obj):
+        if obj.is_accountability_officer:
+            return 'Accountability Officer'
+        return obj.get_role_display()
 
     def get_name(self, obj):
         return obj.full_name or obj.email or obj.phone
@@ -34,13 +40,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class LoginSerializer(serializers.Serializer):
     """Accept email or phone + password (supports frontend DEMO_USERS style emails)."""
-    identifier = serializers.CharField(help_text="Email or phone number")
+    identifier = serializers.CharField(required=False, allow_blank=True, help_text="Email or phone number")
+    email = serializers.EmailField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
         from django.contrib.auth import authenticate
-        identifier = attrs.get('identifier', '').strip().lower()
+        identifier = (
+            attrs.get('identifier', '').strip()
+            or attrs.get('email', '').strip()
+        ).lower()
         password = attrs.get('password')
+        if not identifier:
+            raise serializers.ValidationError("Email or identifier is required.")
 
         user = None
         # Try email first (for demo accounts)
